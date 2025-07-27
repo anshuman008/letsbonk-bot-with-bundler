@@ -216,3 +216,20 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, c
   return buyInstruction
 }
 
+
+
+(async() => {
+   const payer = Keypair.fromSecretKey(bs58.decode(process.env.DEV_WALLET!));
+   const mint = Keypair.generate();
+
+   console.log("here is uesr key:", payer.publicKey.toBase58());
+
+   const txs1 = await createBonkTokenTx(connection,payer,mint);
+   const txs2 = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
+   
+//    const res = await sendAndConfirmRawTransaction(connection, Buffer.from(txs.serialize()));
+
+//    console.log("token created mint---", mint.publicKey);
+
+
+})()
