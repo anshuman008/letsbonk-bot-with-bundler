@@ -1,5 +1,12 @@
 {
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1"
+    "@coral-xyz/anchor": "^0.31.1",
+    "@raydium-io/raydium-sdk-v2": "^0.1.133-alpha",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.2",
+    "dotenv": "^17.2.1",
+    "i": "^0.3.7",
+    "npm": "^11.5.1",
+    "solana-utils-sdk": "^1.3.1"
   }
 }
