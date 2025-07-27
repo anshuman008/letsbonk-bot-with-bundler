@@ -11,12 +11,13 @@ import { getATAAddress, buyExactInInstruction, getPdaLaunchpadAuth, getPdaLaunch
 
 dotenv.config();
 
-
 const commitment = "confirmed"
+const RPC_ENDPOINT = process.env.HTTP_ENDPOINT!;
 
-const connection = new Connection(process.env.HTTP_ENDPOINT!, { commitment})
+const connection = new Connection(RPC_ENDPOINT,commitment)
+
  const BONK_PLATFROM_ID = new PublicKey("FfYek5vEz23cMkWsdJwG2oa6EphsvXSHrGpdALN4g6W1")
-const JITO_FEE = 0.0001;
+ const JITO_FEE = 0.0001;
 
 
 // create token instructions
@@ -76,45 +77,30 @@ export const createBonkTokenTx = async (connection: Connection, mainKp: Keypair,
 
     let createIx = transactions[0].instructions;
 
-    const tipAccounts = [
-      'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
-      'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
-      '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
-      '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
-      'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
-      'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
-      'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
-      'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
-    ];
-    const jitoFeeWallet = new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())])
-    console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
-    console.log(`Calculated fee: ${JITO_FEE * LAMPORTS_PER_SOL} SOL`);
+ 
 
     // Get latest blockhash
     const latestBlockhash = await connection.getLatestBlockhash();
     console.log(" Got latest blockhash:", latestBlockhash.blockhash);
 
     const { blockhash } = await connection.getLatestBlockhash();
-    const ixs = transactions[0].instructions
-    ixs.push(
-      SystemProgram.transfer({
-        fromPubkey: mainKp.publicKey,
-        toPubkey: jitoFeeWallet,
-        lamports: Math.floor(JITO_FEE * 10 ** 9),
-      }),
-    )
-    const messageV0 = new TransactionMessage({
-      payerKey: mainKp.publicKey,
-      recentBlockhash: blockhash,
-      instructions: ixs
-    }).compileToV0Message();
+    // const ixs = transactions[0].instructions
+    
+    // const messageV0 = new TransactionMessage({
+    //   payerKey: mainKp.publicKey,
+    //   recentBlockhash: blockhash,
+    //   instructions: ixs
+    // }).compileToV0Message();
 
-    const transaction = new VersionedTransaction(messageV0);
-    transaction.sign([mainKp, mintKp]);
+    // const transaction = new VersionedTransaction(messageV0);
+    // transaction.sign([mainKp, mintKp]);
 
-    console.log("create token transaction simulate ==>", await connection.simulateTransaction(transaction, { sigVerify: true }))
+    // console.log("create token transaction simulate ==>", await connection.simulateTransaction(transaction, { sigVerify: true }))
 
-    return transaction;
+    //  return transaction;
+
+    return createIx;
+
   } catch (error) {
     console.error("createTokenTx error:", error);
     throw error;
@@ -203,33 +189,84 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, c
 
 
 
-  const txs = new Transaction().add(...buyInstruction);
+//   const txs = new Transaction().add(...buyInstruction);
   
-  const {blockhash} = await connection.getLatestBlockhash();
-  txs.feePayer = kp.publicKey;
-  txs.recentBlockhash = blockhash;
 
 
-  const simulation = await connection.simulateTransaction(txs);
 
-  console.log("simulation res:", simulation);
+//   const simulation = await connection.simulateTransaction(txs);
+
+//   console.log("simulation res:", simulation);
   return buyInstruction
 }
 
 
+export const createAndBuyTx = async() => {
 
-(async() => {
    const payer = Keypair.fromSecretKey(bs58.decode(process.env.DEV_WALLET!));
    const mint = Keypair.generate();
 
-   console.log("here is uesr key:", payer.publicKey.toBase58());
+    const instructions:TransactionInstruction[] = [];
 
-   const txs1 = await createBonkTokenTx(connection,payer,mint);
-   const txs2 = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
+    const createItx = await createBonkTokenTx(connection,payer,mint);
+    
+    instructions.push(...createItx);
+
+    const butItx = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
+
+    instructions.push(...butItx);
+
+
+
+    const txs = new Transaction().add(...createItx).add(...butItx);
+
+
+    const tipAccounts = [
+      'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
+      'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+      '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
+      '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
+      'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
+      'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
+      'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
+      'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
+    ];
+
+    const jitoFeeWallet = new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())])
+
+    txs.add(
+      SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: jitoFeeWallet,
+        lamports: Math.floor(JITO_FEE * 10 ** 9),
+      }),
+    )
+
+    const {blockhash} = await connection.getLatestBlockhash();
+    txs.feePayer = payer.publicKey;
+    txs.recentBlockhash = blockhash;
+
+    const simulation = await connection.simulateTransaction(txs);
+
+    console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
+    console.log(`Calculated fee: ${JITO_FEE * LAMPORTS_PER_SOL} SOL`);
+    console.log("here is simulation", simulation);
+}
+
+
+(async() => {
+//    const payer = Keypair.fromSecretKey(bs5cl8.decode(process.env.DEV_WALLET!));
+
+//    console.log("here is uesr key:", payer.publicKey.toBase58());
+
+//    const txs1 = await createBonkTokenTx(connection,payer,mint);
+//    const txs2 = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
    
 //    const res = await sendAndConfirmRawTransaction(connection, Buffer.from(txs.serialize()));
 
 //    console.log("token created mint---", mint.publicKey);
 
+
+   await createAndBuyTx();
 
 })()

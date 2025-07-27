@@ -1,7 +1,11 @@
 import { Raydium, TxVersion } from '@raydium-io/raydium-sdk-v2'
 import { Connection, Keypair, PublicKey, clusterApiUrl } from '@solana/web3.js'
+import dotenv from "dotenv";
 
-const HELIUS_RPC=process.env.HTTP_ENDPOINT!;
+dotenv.config();
+
+
+const HELIUS_RPC= process.env.HTTP_ENDPOINT!;
 
 export const connection = new Connection(HELIUS_RPC) 
 export const txVersion = TxVersion.LEGACY
