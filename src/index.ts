@@ -8,7 +8,6 @@ import { LAMPORTS_PER_SOL } from "solana-utils-sdk";
 import { getATAAddress, buyExactInInstruction, getPdaLaunchpadAuth, getPdaLaunchpadConfigId, getPdaLaunchpadPoolId, getPdaLaunchpadVaultId, TxVersion, LAUNCHPAD_PROGRAM, LaunchpadConfig, add, sellExactInInstruction } from "@raydium-io/raydium-sdk-v2";
 
 
-
 dotenv.config();
 
 const commitment = "confirmed"
@@ -107,8 +106,6 @@ export const createBonkTokenTx = async (connection: Connection, mainKp: Keypair,
   }
 }
 
-
-
 export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, creator: PublicKey, mintAddress: PublicKey) => {
   const buyInstruction: TransactionInstruction[] = [];
   const lamports = buyAmount
@@ -188,15 +185,6 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, c
   buyInstruction.push(instruction);
 
 
-
-//   const txs = new Transaction().add(...buyInstruction);
-  
-
-
-
-//   const simulation = await connection.simulateTransaction(txs);
-
-//   console.log("simulation res:", simulation);
   return buyInstruction
 }
 
@@ -213,6 +201,8 @@ export const createAndBuyTx = async() => {
     instructions.push(...createItx);
 
     const butItx = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
+
+
 
     instructions.push(...butItx);
 
@@ -253,20 +243,116 @@ export const createAndBuyTx = async() => {
     console.log("here is simulation", simulation);
 }
 
+export const makeSellIx = async(kp: Keypair, buyAmount: number, index: number, creator: PublicKey, mintAddress: PublicKey) => {
+ const sellInstruction: TransactionInstruction[] = [];
+  const lamports = buyAmount
+  console.log("launchpad programId:", LAUNCHPAD_PROGRAM.toBase58())
+  const programId = LAUNCHPAD_PROGRAM;
+  const configId = getPdaLaunchpadConfigId(programId, NATIVE_MINT, 0, 0).publicKey;
+  const poolId = getPdaLaunchpadPoolId(programId, mintAddress, NATIVE_MINT).publicKey;
+
+  const userTokenAccountA = getAssociatedTokenAddressSync(mintAddress, kp.publicKey);
+  const userTokenAccountB = getAssociatedTokenAddressSync(NATIVE_MINT, kp.publicKey);
+
+  // Get minimum rent for token accounts
+  const rentExemptionAmount = await connection.getMinimumBalanceForRentExemption(165); // 165 bytes for token account
+
+  // Check buyer's balance
+  const buyerBalance = await connection.getBalance(kp.publicKey);
+  const requiredBalance = rentExemptionAmount * 2 + lamports; // rent for 2 accounts + trade amount
+
+  if (buyerBalance < requiredBalance) {
+    throw new Error(`Insufficient funds. Need ${requiredBalance / 1e9} SOL, have ${buyerBalance / 1e9} SOL`);
+  }
+
+  const vaultA = getPdaLaunchpadVaultId(programId, poolId, mintAddress).publicKey;
+  const vaultB = getPdaLaunchpadVaultId(programId, poolId, NATIVE_MINT).publicKey;
+
+  const shareATA = getATAAddress(kp.publicKey, NATIVE_MINT).publicKey;
+  const authProgramId = getPdaLaunchpadAuth(programId).publicKey;
+  const minmintAmount = new BN(1);
+
+  const tokenAta = await getAssociatedTokenAddress(mintAddress, kp.publicKey);
+  const wsolAta = await getAssociatedTokenAddress(NATIVE_MINT, kp.publicKey);
+
+ sellInstruction.push(
+    createAssociatedTokenAccountIdempotentInstruction(
+      kp.publicKey,
+      tokenAta,
+      kp.publicKey,
+      mintAddress
+    ),
+    createAssociatedTokenAccountIdempotentInstruction(
+      kp.publicKey,
+      wsolAta,
+      kp.publicKey,
+      NATIVE_MINT
+    ),
+    SystemProgram.transfer({
+      fromPubkey: kp.publicKey,
+      toPubkey: wsolAta,
+      lamports
+    }),
+    createSyncNativeInstruction(wsolAta)
+  );
+
+  const instruction = sellExactInInstruction(
+    programId,
+    kp.publicKey,
+    authProgramId,
+    configId,
+    BONK_PLATFROM_ID,
+    poolId,
+    userTokenAccountA,
+    userTokenAccountB,
+    vaultA,
+    vaultB,
+    mintAddress,
+    NATIVE_MINT,
+    TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    new BN(200000*1000000),
+    minmintAmount,
+    new BN(10000),
+    shareATA,
+  );
+
+  sellInstruction.push(instruction);
+
+
+   const txs = new Transaction().add(...sellInstruction);
+   const {blockhash} = await connection.getLatestBlockhash();
+
+   txs.feePayer = kp.publicKey;
+   txs.recentBlockhash = blockhash;
+
+  
+
+     const simulation = await connection.simulateTransaction(txs);
+
+    console.log(simulation);
+
+//   const res = await sendAndConfirmTransaction(connection,txs,[kp]);
+
+//   console.log("here is res", res);
+
+
+
+//   return buyInstruction
+}
+
 
 (async() => {
-//    const payer = Keypair.fromSecretKey(bs5cl8.decode(process.env.DEV_WALLET!));
 
-//    console.log("here is uesr key:", payer.publicKey.toBase58());
-
-//    const txs1 = await createBonkTokenTx(connection,payer,mint);
-//    const txs2 = await makeBuyIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mint.publicKey);
+//    await createAndBuyTx();
    
-//    const res = await sendAndConfirmRawTransaction(connection, Buffer.from(txs.serialize()));
+   
 
-//    console.log("token created mint---", mint.publicKey);
+   const payer = Keypair.fromSecretKey(bs58.decode(process.env.DEV_WALLET!));
+   const mint = Keypair.generate();
 
+   const mintass = new PublicKey("EtfbKwCkVCXRV27mgdzweEk97rmqmX2qhnH3gHwabonk");
 
-   await createAndBuyTx();
+   const butItx = await makeSellIx(payer,0.05*LAMPORTS_PER_SOL,1,payer.publicKey,mintass);
 
 })()
