@@ -120,3 +120,99 @@ export const createBonkTokenTx = async (connection: Connection, mainKp: Keypair,
     throw error;
   }
 }
+
+
+
+export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, creator: PublicKey, mintAddress: PublicKey) => {
+  const buyInstruction: TransactionInstruction[] = [];
+  const lamports = buyAmount
+  console.log("launchpad programId:", LAUNCHPAD_PROGRAM.toBase58())
+  const programId = LAUNCHPAD_PROGRAM;
+  const configId = getPdaLaunchpadConfigId(programId, NATIVE_MINT, 0, 0).publicKey;
+  const poolId = getPdaLaunchpadPoolId(programId, mintAddress, NATIVE_MINT).publicKey;
+
+  const userTokenAccountA = getAssociatedTokenAddressSync(mintAddress, kp.publicKey);
+  const userTokenAccountB = getAssociatedTokenAddressSync(NATIVE_MINT, kp.publicKey);
+
+  // Get minimum rent for token accounts
+  const rentExemptionAmount = await connection.getMinimumBalanceForRentExemption(165); // 165 bytes for token account
+
+  // Check buyer's balance
+  const buyerBalance = await connection.getBalance(kp.publicKey);
+  const requiredBalance = rentExemptionAmount * 2 + lamports; // rent for 2 accounts + trade amount
+
+  if (buyerBalance < requiredBalance) {
+    throw new Error(`Insufficient funds. Need ${requiredBalance / 1e9} SOL, have ${buyerBalance / 1e9} SOL`);
+  }
+
+  const vaultA = getPdaLaunchpadVaultId(programId, poolId, mintAddress).publicKey;
+  const vaultB = getPdaLaunchpadVaultId(programId, poolId, NATIVE_MINT).publicKey;
+
+  const shareATA = getATAAddress(kp.publicKey, NATIVE_MINT).publicKey;
+  const authProgramId = getPdaLaunchpadAuth(programId).publicKey;
+  const minmintAmount = new BN(1);
+
+  const tokenAta = await getAssociatedTokenAddress(mintAddress, kp.publicKey);
+  const wsolAta = await getAssociatedTokenAddress(NATIVE_MINT, kp.publicKey);
+  buyInstruction.push(
+    createAssociatedTokenAccountIdempotentInstruction(
+      kp.publicKey,
+      tokenAta,
+      kp.publicKey,
+      mintAddress
+    ),
+    createAssociatedTokenAccountIdempotentInstruction(
+      kp.publicKey,
+      wsolAta,
+      kp.publicKey,
+      NATIVE_MINT
+    ),
+    SystemProgram.transfer({
+      fromPubkey: kp.publicKey,
+      toPubkey: wsolAta,
+      lamports
+    }),
+    createSyncNativeInstruction(wsolAta)
+  );
+
+  const instruction = buyExactInInstruction(
+    programId,
+    kp.publicKey,
+    authProgramId,
+    configId,
+    BONK_PLATFROM_ID,
+    poolId,
+    userTokenAccountA,
+    userTokenAccountB,
+    vaultA,
+    vaultB,
+    mintAddress,
+    NATIVE_MINT,
+    TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    new BN(lamports),
+    minmintAmount,
+    new BN(10000),
+    shareATA,
+  );
+
+
+
+
+  buyInstruction.push(instruction);
+
+
+
+  const txs = new Transaction().add(...buyInstruction);
+  
+  const {blockhash} = await connection.getLatestBlockhash();
+  txs.feePayer = kp.publicKey;
+  txs.recentBlockhash = blockhash;
+
+
+  const simulation = await connection.simulateTransaction(txs);
+
+  console.log("simulation res:", simulation);
+  return buyInstruction
+}
+
