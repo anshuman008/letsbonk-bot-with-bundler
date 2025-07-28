@@ -8,6 +8,8 @@ dotenv.config();
 const HELIUS_RPC= process.env.HTTP_ENDPOINT!;
 
 export const connection = new Connection(HELIUS_RPC) 
+export const BONK_PLATFROM_ID = new PublicKey("FfYek5vEz23cMkWsdJwG2oa6EphsvXSHrGpdALN4g6W1")
+export const JITO_FEE = 0.0001;
 export const txVersion = TxVersion.LEGACY
 const cluster = 'mainnet'
 
@@ -31,3 +33,17 @@ export const initSdk = async (wallet: PublicKey, params?: { loadToken?: boolean 
 
     return raydium
 }
+
+
+export interface Metadata {
+  name: string,
+  symbol: string,
+  description: string,
+  file:string,
+  twitter?:string,
+  telegram?:string,
+  website?:string
+}
+
+
+  
