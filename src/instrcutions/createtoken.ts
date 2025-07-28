@@ -1,34 +1,41 @@
-import {  Keypair } from "@solana/web3.js";
-import {  BONK_PLATFROM_ID, connection, initSdk, Metadata } from "../config";
-import {  NATIVE_MINT } from "@solana/spl-token";
+import { Keypair } from "@solana/web3.js";
+import { BONK_PLATFROM_ID, connection, initSdk, Metadata } from "../config";
+import { NATIVE_MINT } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-import { getPdaLaunchpadConfigId, TxVersion, LAUNCHPAD_PROGRAM, LaunchpadConfig} from "@raydium-io/raydium-sdk-v2";
-import path from "path";
-import fs from "fs";
-import { uploadToIPFS } from "../metadata";
+import {
+  getPdaLaunchpadConfigId,
+  TxVersion,
+  LAUNCHPAD_PROGRAM,
+  LaunchpadConfig,
+} from "@raydium-io/raydium-sdk-v2";
 
 
-
-
-export const createBonkTokenTx = async (tokenmetadata:Metadata,metadata_uri:string,solBuyAmount:number, mainKp: Keypair, mintKp: Keypair) => {
-
+export const createBonkTokenTx = async (
+  tokenmetadata: Metadata,
+  metadata_uri: string,
+  solBuyAmount: number,
+  mainKp: Keypair,
+  mintKp: Keypair
+) => {
   try {
-
-
-      if(!metadata_uri) {
-        throw new Error("Token metadata URI is undefined");
-     }
-   
+    if (!metadata_uri) {
+      throw new Error("Token metadata URI is undefined");
+    }
 
     // Initialize SDK
     const raydium = await initSdk(mainKp.publicKey);
 
     // Get config info
-    const configId = getPdaLaunchpadConfigId(LAUNCHPAD_PROGRAM, NATIVE_MINT, 0, 0).publicKey;
+    const configId = getPdaLaunchpadConfigId(
+      LAUNCHPAD_PROGRAM,
+      NATIVE_MINT,
+      0,
+      0
+    ).publicKey;
     const configData = await connection.getAccountInfo(configId);
 
     if (!configData) {
-      throw new Error('Config not found');
+      throw new Error("Config not found");
     }
 
     const configInfo = LaunchpadConfig.decode(configData.data);
@@ -46,7 +53,7 @@ export const createBonkTokenTx = async (tokenmetadata:Metadata,metadata_uri:stri
       decimals: 6,
       name: tokenmetadata.name,
       symbol: tokenmetadata.symbol,
-      migrateType: 'amm',
+      migrateType: "amm",
       uri: metadata_uri,
       configId,
       configInfo,
@@ -61,14 +68,12 @@ export const createBonkTokenTx = async (tokenmetadata:Metadata,metadata_uri:stri
       computeBudgetConfig: {
         units: 1_200_000,
         microLamports: 100_000,
-      }
+      },
     });
 
-
     return transactions[0].instructions;
-
   } catch (error) {
     console.error("createTokenTx error:", error);
     throw error;
   }
-}
+};

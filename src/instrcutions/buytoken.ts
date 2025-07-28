@@ -1,37 +1,90 @@
-
-import { Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
-import { createAssociatedTokenAccountIdempotentInstruction, createSyncNativeInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync, NATIVE_MINT, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  createSyncNativeInstruction,
+  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-import { getATAAddress, buyExactInInstruction, getPdaLaunchpadAuth, getPdaLaunchpadConfigId, getPdaLaunchpadPoolId, getPdaLaunchpadVaultId, TxVersion, LAUNCHPAD_PROGRAM, LaunchpadConfig, add, sellExactInInstruction } from "@raydium-io/raydium-sdk-v2";
+import {
+  getATAAddress,
+  buyExactInInstruction,
+  getPdaLaunchpadAuth,
+  getPdaLaunchpadConfigId,
+  getPdaLaunchpadPoolId,
+  getPdaLaunchpadVaultId,
+  TxVersion,
+  LAUNCHPAD_PROGRAM,
+  LaunchpadConfig,
+  add,
+  sellExactInInstruction,
+} from "@raydium-io/raydium-sdk-v2";
 import { BONK_PLATFROM_ID, connection } from "../config";
 
-
-
-
-export const makeBuyIx = async (kp: Keypair, buyAmount: number, mintAddress: PublicKey) => {
+export const makeBuyIx = async (
+  kp: Keypair,
+  buyAmount: number,
+  mintAddress: PublicKey
+) => {
   const buyInstruction: TransactionInstruction[] = [];
-  const lamports = buyAmount
-  console.log("launchpad programId:", LAUNCHPAD_PROGRAM.toBase58())
+  const lamports = buyAmount;
+  console.log("launchpad programId:", LAUNCHPAD_PROGRAM.toBase58());
   const programId = LAUNCHPAD_PROGRAM;
-  const configId = getPdaLaunchpadConfigId(programId, NATIVE_MINT, 0, 0).publicKey;
-  const poolId = getPdaLaunchpadPoolId(programId, mintAddress, NATIVE_MINT).publicKey;
+  const configId = getPdaLaunchpadConfigId(
+    programId,
+    NATIVE_MINT,
+    0,
+    0
+  ).publicKey;
+  const poolId = getPdaLaunchpadPoolId(
+    programId,
+    mintAddress,
+    NATIVE_MINT
+  ).publicKey;
 
-  const userTokenAccountA = getAssociatedTokenAddressSync(mintAddress, kp.publicKey);
-  const userTokenAccountB = getAssociatedTokenAddressSync(NATIVE_MINT, kp.publicKey);
+  const userTokenAccountA = getAssociatedTokenAddressSync(
+    mintAddress,
+    kp.publicKey
+  );
+  const userTokenAccountB = getAssociatedTokenAddressSync(
+    NATIVE_MINT,
+    kp.publicKey
+  );
 
   // Get minimum rent for token accounts
-  const rentExemptionAmount = await connection.getMinimumBalanceForRentExemption(165); // 165 bytes for token account
+  const rentExemptionAmount =
+    await connection.getMinimumBalanceForRentExemption(165); // 165 bytes for token account
 
   // Check buyer's balance
   const buyerBalance = await connection.getBalance(kp.publicKey);
   const requiredBalance = rentExemptionAmount * 2 + lamports; // rent for 2 accounts + trade amount
 
   if (buyerBalance < requiredBalance) {
-    throw new Error(`Insufficient funds. Need ${requiredBalance / 1e9} SOL, have ${buyerBalance / 1e9} SOL`);
+    throw new Error(
+      `Insufficient funds. Need ${requiredBalance / 1e9} SOL, have ${
+        buyerBalance / 1e9
+      } SOL`
+    );
   }
 
-  const vaultA = getPdaLaunchpadVaultId(programId, poolId, mintAddress).publicKey;
-  const vaultB = getPdaLaunchpadVaultId(programId, poolId, NATIVE_MINT).publicKey;
+  const vaultA = getPdaLaunchpadVaultId(
+    programId,
+    poolId,
+    mintAddress
+  ).publicKey;
+  const vaultB = getPdaLaunchpadVaultId(
+    programId,
+    poolId,
+    NATIVE_MINT
+  ).publicKey;
 
   const shareATA = getATAAddress(kp.publicKey, NATIVE_MINT).publicKey;
   const authProgramId = getPdaLaunchpadAuth(programId).publicKey;
@@ -55,7 +108,7 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, mintAddress: Pub
     SystemProgram.transfer({
       fromPubkey: kp.publicKey,
       toPubkey: wsolAta,
-      lamports
+      lamports,
     }),
     createSyncNativeInstruction(wsolAta)
   );
@@ -78,14 +131,10 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, mintAddress: Pub
     new BN(lamports),
     minmintAmount,
     new BN(10000),
-    shareATA,
+    shareATA
   );
-
-
-
 
   buyInstruction.push(instruction);
 
-
-  return buyInstruction
-}
+  return buyInstruction;
+};
