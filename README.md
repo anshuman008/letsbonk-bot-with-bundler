@@ -1,14 +1,17 @@
 # 🚀 BONK Trading Bot
 
-A sophisticated Solana-based trading bot that automates token creation, buying, and selling on the Raydium launchpad platform. This bot is specifically designed to work with the BONK platform and provides a complete trading workflow from token creation to profit-taking.
+A sophisticated Solana-based trading bot that automates token creation, buying, and selling on the Raydium launchpad platform. This bot is specifically designed to work with the BONK platform and provides advanced features including transaction bundling, lookup tables, MEV protection, and bonding curve calculations.
 
 ## 🌟 Features
 
 - **Token Creation**: Automatically create new tokens with custom metadata
 - **IPFS Integration**: Upload token metadata to IPFS for decentralized storage
 - **Automated Trading**: Create, buy, and sell tokens in a single transaction
+- **Transaction Bundling**: Bundle multiple buy/sell transactions for efficiency
+- **Lookup Tables**: Optimize transaction size and reduce costs with address lookup tables
+- **MEV Protection**: Built-in Jito integration for better transaction success rates
+- **Bonding Curve Calculations**: Advanced arithmetic logic for price calculations
 - **Slippage Protection**: Configurable slippage tolerance for safe trading
-- **Jito MEV Protection**: Built-in Jito tip integration for better transaction success rates
 - **Raydium SDK Integration**: Leverages the latest Raydium SDK v2 for optimal performance
 - **TypeScript Support**: Fully typed codebase for better development experience
 
@@ -22,7 +25,9 @@ A sophisticated Solana-based trading bot that automates token creation, buying, 
   - `@solana/web3.js` - Solana Web3 client
   - `@coral-xyz/anchor` - Solana program framework
   - `@solana/spl-token` - SPL token operations
-  - `axios` - HTTP client for IPFS uploads
+  - `axios` - HTTP client for IPFS uploads and Jito API
+  - `bs58` - Base58 encoding/decoding
+  - `solana-utils-sdk` - Solana utility functions
 
 ## 📋 Prerequisites
 
@@ -109,6 +114,126 @@ npx tsc
 node dist/index.js
 ```
 
+## 🔧 Advanced Features
+
+### Transaction Bundling
+
+The bot includes sophisticated transaction bundling capabilities for efficient trading:
+
+#### Bundle Buy (`src/bundler/bundleBuy.ts`)
+- **Batch Processing**: Processes multiple buy transactions in batches of 2
+- **Compute Optimization**: Sets compute unit price and limits for optimal performance
+- **Lookup Table Integration**: Uses address lookup tables to reduce transaction size
+- **Automatic ATA Creation**: Creates associated token accounts as needed
+
+```typescript
+import { makeBuyTx } from './src/bundler/bundleBuy';
+
+// Bundle buy with multiple wallets
+const buyTxs = await makeBuyTx(connection, mint, buyerKeypairs, lookupTableAddress);
+```
+
+#### Bundle Sell (`src/bundler/bundleSell.ts`)
+- **Slippage Protection**: Configurable slippage tolerance (default 5%)
+- **Batch Selling**: Sells tokens from multiple wallets efficiently
+- **Price Calculation**: Uses bonding curve logic for accurate price estimation
+- **Transaction Optimization**: Optimized for high-frequency trading
+
+```typescript
+import { sellBundleTx } from './src/bundler/bundleSell';
+
+// Bundle sell with slippage protection
+const sellTxs = await sellBundleTx(connection, mint, sellerKeypairs, lookupTableAddress);
+```
+
+### Lookup Tables
+
+The bot implements Solana Address Lookup Tables (LUT) for transaction optimization:
+
+#### LUT Creation (`src/LookupTable/createLUT.ts`)
+- **Automatic Creation**: Creates lookup tables with retry logic
+- **Authority Management**: Sets proper authority and payer
+- **Slot Management**: Uses recent slots for optimal performance
+
+```typescript
+import { createLUT } from './src/LookupTable/createLUT';
+
+// Create a new lookup table
+const lutAddress = await createLUT(mainKeypair);
+```
+
+#### Address Management (`src/LookupTable/lookupAddressFiller.ts`)
+- **Wallet Addresses**: Adds multiple wallet addresses to LUT
+- **Token Accounts**: Adds associated token accounts for the target token
+- **WSOL Accounts**: Adds wrapped SOL accounts for trading
+- **Program Addresses**: Adds necessary program and PDA addresses
+
+```typescript
+import { addBonkAddressesToTable } from './src/LookupTable/lookupAddressFiller';
+
+// Add addresses to lookup table
+await addBonkAddressesToTable(lutAddress, mint, walletKeypairs, mainKeypair);
+```
+
+#### SOL Distribution (`src/LookupTable/disrtibuteSol.ts`)
+- **Multi-Wallet Funding**: Distributes SOL to multiple wallets
+- **Batch Transactions**: Processes funding in efficient batches
+- **Balance Management**: Ensures proper SOL distribution for trading
+
+### Executors
+
+The bot provides two transaction execution methods:
+
+#### Jito Executor (`exucutor/jito.ts`)
+- **MEV Protection**: Uses Jito block engine for better transaction success
+- **Multi-Endpoint**: Sends to multiple Jito endpoints for redundancy
+- **Bundle Support**: Supports transaction bundling for atomic execution
+- **Confirmation Handling**: Proper transaction confirmation and error handling
+
+```typescript
+import { executeJitoTx } from './exucutor/jito';
+
+// Execute with Jito MEV protection
+const signature = await executeJitoTx(transactions, payer, 'confirmed');
+```
+
+#### Legacy Executor (`exucutor/legacy.ts`)
+- **Standard Execution**: Traditional Solana transaction execution
+- **V0 Transactions**: Supports versioned transactions
+- **Retry Logic**: Built-in retry mechanism for failed transactions
+- **Confirmation**: Proper transaction confirmation handling
+
+```typescript
+import { createAndSendV0Tx } from './exucutor/legacy';
+
+// Execute standard transaction
+const success = await createAndSendV0Tx(instructions, keypair, connection);
+```
+
+### Bonding Curve Arithmetic (`src/arithmeticLogic.ts`)
+
+Advanced mathematical calculations for bonding curve operations:
+
+#### Key Features:
+- **Buy Price Calculation**: Calculates token amounts for SOL input
+- **Sell Price Calculation**: Calculates SOL output for token amounts
+- **Market Cap Calculation**: Computes current market cap in SOL
+- **Fee Handling**: Includes fee calculations in price computations
+- **Virtual Reserves**: Handles virtual and real reserve calculations
+
+```typescript
+import { BondingCurveAccount } from './src/arithmeticLogic';
+
+// Calculate buy price
+const tokenAmount = curveAccount.getBuyPrice(solAmount);
+
+// Calculate sell price with fees
+const solOutput = curveAccount.getSellPrice(tokenAmount, feeBps);
+
+// Get market cap
+const marketCap = curveAccount.getMarketCapSOL();
+```
+
 ### Custom Trading Functions
 
 You can also use individual functions for specific operations:
@@ -157,16 +282,28 @@ For advanced trading, you can implement pool data fetching in `getPoolInfo()` fu
 ```
 letsbonkdotfun-trading-bot/
 ├── src/
-│   ├── index.ts              # Main entry point
-│   ├── config.ts             # Configuration and SDK setup
-│   ├── metadata.ts           # IPFS metadata upload
+│   ├── index.ts                    # Main entry point
+│   ├── config.ts                   # Configuration and SDK setup
+│   ├── metadata.ts                 # IPFS metadata upload
+│   ├── arithmeticLogic.ts          # Bonding curve calculations
+│   ├── bundler/
+│   │   ├── bundleBuy.ts            # Bundle buy transactions
+│   │   └── bundleSell.ts           # Bundle sell transactions
+│   ├── LookupTable/
+│   │   ├── createLUT.ts            # Create lookup tables
+│   │   ├── lookupAddressFiller.ts  # Add addresses to LUT
+│   │   ├── disrtibuteSol.ts        # Distribute SOL to wallets
+│   │   └── saveAccounts.ts         # Save account data
 │   └── instrcutions/
-│       ├── createtoken.ts    # Token creation logic
-│       ├── buytoken.ts       # Token buying logic
-│       ├── selltoken.ts      # Token selling logic
-│       └── createAndBuy.ts   # Combined create and buy
+│       ├── createtoken.ts          # Token creation logic
+│       ├── buytoken.ts             # Token buying logic
+│       ├── selltoken.ts            # Token selling logic
+│       └── createAndBuy.ts         # Combined create and buy
+├── exucutor/
+│   ├── jito.ts                     # Jito MEV executor
+│   └── legacy.ts                   # Standard transaction executor
 ├── image/
-│   └── bonk_fun.png         # Token image
+│   └── bonk_fun.png               # Token image
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -179,6 +316,8 @@ letsbonkdotfun-trading-bot/
 3. **Wallet Security**: Never share your private keys. Use environment variables.
 4. **RPC Limits**: Use a reliable RPC provider to avoid rate limiting.
 5. **Gas Fees**: Ensure your wallet has sufficient SOL for transaction fees.
+6. **Lookup Tables**: LUTs require time to activate (15+ seconds after creation).
+7. **Bundle Limits**: Transaction bundles have size limits; adjust batch sizes accordingly.
 
 ## 🔍 Troubleshooting
 
@@ -196,6 +335,16 @@ letsbonkdotfun-trading-bot/
    - Check network congestion
    - Verify slippage settings
    - Ensure sufficient SOL for Jito tips
+
+4. **Lookup Table Errors**
+   - Wait 15+ seconds after LUT creation before using
+   - Verify LUT authority and payer settings
+   - Check that addresses are properly added to LUT
+
+5. **Bundle Transaction Failures**
+   - Reduce batch size if transactions are too large
+   - Check compute unit limits and prices
+   - Verify all required addresses are in lookup table
 
 ### Debug Mode
 
@@ -228,6 +377,8 @@ This software is provided "as is" without warranty. Trading cryptocurrencies inv
 - [Raydium SDK Documentation](https://raydium.io/developers/)
 - [BONK Platform](https://bonk.fun/)
 - [Helius RPC](https://helius.xyz/)
+- [Jito Labs](https://jito.network/)
+- [Address Lookup Tables](https://docs.solana.com/developing/features/versioned-transactions#address-lookup-tables)
 
 ---
 
