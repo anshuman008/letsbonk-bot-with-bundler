@@ -97,7 +97,7 @@ export const makeSellIx = async (
 
   // Method 1: Simple percentage-based slippage
   // You need to estimate expected SOL output somehow
-  const estimatedSolOutput = new BN(1000000); // Replace with actual calculation
+  const estimatedSolOutput = new BN(1000000);
   const minSolAmount = estimatedSolOutput
     .mul(new BN(10000 - slippageBps))
     .div(new BN(10000));
