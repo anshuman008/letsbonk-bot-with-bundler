@@ -1,5 +1,5 @@
 import { Raydium, TxVersion } from '@raydium-io/raydium-sdk-v2'
-import { Connection, Keypair, PublicKey, clusterApiUrl } from '@solana/web3.js'
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js'
 import dotenv from "dotenv";
 
 dotenv.config();

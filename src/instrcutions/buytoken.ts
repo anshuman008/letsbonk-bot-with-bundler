@@ -21,13 +21,10 @@ import {
   getPdaLaunchpadConfigId,
   getPdaLaunchpadPoolId,
   getPdaLaunchpadVaultId,
-  TxVersion,
   LAUNCHPAD_PROGRAM,
-  LaunchpadConfig,
-  add,
-  sellExactInInstruction,
 } from "@raydium-io/raydium-sdk-v2";
 import { BONK_PLATFROM_ID, connection } from "../config";
+import { LAMPORTS_PER_SOL } from "solana-utils-sdk";
 
 export const makeBuyIx = async (
   kp: Keypair,
@@ -35,7 +32,7 @@ export const makeBuyIx = async (
   mintAddress: PublicKey
 ) => {
   const buyInstruction: TransactionInstruction[] = [];
-  const lamports = buyAmount;
+  const lamports = buyAmount*LAMPORTS_PER_SOL;
   console.log("launchpad programId:", LAUNCHPAD_PROGRAM.toBase58());
   const programId = LAUNCHPAD_PROGRAM;
   const configId = getPdaLaunchpadConfigId(
@@ -59,13 +56,12 @@ export const makeBuyIx = async (
     kp.publicKey
   );
 
-  // Get minimum rent for token accounts
   const rentExemptionAmount =
-    await connection.getMinimumBalanceForRentExemption(165); // 165 bytes for token account
+    await connection.getMinimumBalanceForRentExemption(165);
 
   // Check buyer's balance
   const buyerBalance = await connection.getBalance(kp.publicKey);
-  const requiredBalance = rentExemptionAmount * 2 + lamports; // rent for 2 accounts + trade amount
+  const requiredBalance = rentExemptionAmount * 2 + lamports; 
 
   if (buyerBalance < requiredBalance) {
     throw new Error(

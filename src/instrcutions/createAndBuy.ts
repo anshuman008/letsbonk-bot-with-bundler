@@ -20,25 +20,18 @@ export const createAndBuyTx = async (
 ) => {
   const instructions: TransactionInstruction[] = [];
 
-  const createItx = await createBonkTokenTx(
-    tokenmeatda,
-    metadat_uri,
-    solBuyAmount,
-    payer,
-    mint
-  );
 
-  instructions.push(...createItx);
+   const [butItx,blockhash,createItx] = await Promise.all([
+     makeBuyIx(payer,solBuyAmount,mint.publicKey) ,
+     connection.getLatestBlockhash("finalized"),
+     createBonkTokenTx(tokenmeatda, metadat_uri, solBuyAmount, payer, mint)
+  ]);
 
-  const butItx = await makeBuyIx(
-    payer,
-    0.05 * LAMPORTS_PER_SOL,
-    mint.publicKey
-  );
 
-  instructions.push(...butItx);
 
-  const txs = new Transaction().add(...createItx).add(...butItx);
+  instructions.push(...createItx,...butItx);
+
+  const txs = new Transaction().add(...instructions);
 
   const tipAccounts = [
     "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
@@ -63,14 +56,18 @@ export const createAndBuyTx = async (
     })
   );
 
-  const { blockhash } = await connection.getLatestBlockhash();
   txs.feePayer = payer.publicKey;
-  txs.recentBlockhash = blockhash;
+  txs.recentBlockhash = blockhash.blockhash;
+  txs.sign(payer,mint);
 
+
+   // for test the transaction uncomment simulation
+ 
   // const simulation = await connection.simulateTransaction(txs);
-
   // console.log("simulation res: ",simulation);
-  const res = await sendAndConfirmTransaction(connection, txs, [payer, mint]);
+
+
+  const res = await connection.sendRawTransaction(txs.serialize());
 
   console.log("here is res", res);
   console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
